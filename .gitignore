@@ -28,3 +28,4 @@ Thumbs.db
 *.txt
 FlightAltitude_*
 data/
+processed_dataset/
