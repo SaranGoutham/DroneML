@@ -1,14 +1,20 @@
-import os
 import re
+import sys
 from pathlib import Path
 import pandas as pd
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.preprocessing.config import DATASET_DIR, RAW_METADATA_FILE, RESULTS_DIR
 
 # ==========================
 # CONFIGURATION
 # ==========================
 
-DATASET_PATH = r"D:\DroneML\dataset\DatainBrief_dataset_1"
-RESULTS_PATH = r"D:\DroneML\results"
+DATASET_PATH = DATASET_DIR
+RESULTS_PATH = RESULTS_DIR
 
 VALID_FORMATS = ["JPG", "R_JPG", "TIFF"]
 
@@ -20,7 +26,7 @@ VALID_EXTENSIONS = [
     ".tiff"
 ]
 
-os.makedirs(RESULTS_PATH, exist_ok=True)
+RESULTS_PATH.mkdir(parents=True, exist_ok=True)
 
 # ==========================
 # STORAGE
@@ -167,10 +173,7 @@ for flight in flight_folders:
 
 df = pd.DataFrame(metadata)
 
-csv_path = os.path.join(
-    RESULTS_PATH,
-    "metadata.csv"
-)
+csv_path = RAW_METADATA_FILE
 
 df.to_csv(csv_path, index=False)
 

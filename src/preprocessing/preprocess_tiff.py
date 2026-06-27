@@ -41,6 +41,7 @@ Dataset Audit -> EDA -> preprocess_tiff.py -> split_by_flight.py
 
 import time
 import datetime
+import sys
 from pathlib import Path
 
 import cv2
@@ -49,16 +50,25 @@ import pandas as pd
 from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 # ──────────────────────────────────────────────────────────────────────────────
 # CONFIGURATION
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Paths (relative to the project root, i.e. the directory where this script lives)
 from src.preprocessing.config import (
+    CLAHE_CLIP_LIMIT,
+    CLAHE_GRID_SIZE,
     DATASET_DIR,
+    GAMMA as CONFIG_GAMMA,
+    IMAGE_SIZE,
     RESULTS_DIR,
     PROCESSED_DIR,
     METADATA_FILE,
+    PREPROCESSING_REPORT_FILE,
 )
 
 DATASET_ROOT = DATASET_DIR
@@ -68,12 +78,12 @@ if not DATASET_ROOT.exists():
     )
 OUTPUT_DIR = PROCESSED_DIR
 METADATA_CSV = METADATA_FILE
-REPORT_FILE = RESULTS_DIR / "preprocessing_report.txt"
+REPORT_FILE = PREPROCESSING_REPORT_FILE
 # Image processing parameters
-TARGET_SIZE    = (224, 224)
-CLAHE_CLIP     = 2.0
-CLAHE_GRID     = (8, 8)
-GAMMA          = 1.2
+TARGET_SIZE    = IMAGE_SIZE
+CLAHE_CLIP     = CLAHE_CLIP_LIMIT
+CLAHE_GRID     = CLAHE_GRID_SIZE
+GAMMA          = CONFIG_GAMMA
 
 # TIFF magic bytes (little-endian "II" and big-endian "MM" Intel/Motorola)
 TIFF_MAGIC     = {b"II", b"MM"}

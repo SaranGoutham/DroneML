@@ -21,6 +21,7 @@ DATASET_DIR = PROJECT_ROOT / "dataset" / "DatainBrief_dataset_1"
 # =====================================================
 
 RESULTS_DIR = PROJECT_ROOT / "results"
+GRAPHS_DIR = RESULTS_DIR / "graphs"
 
 # =====================================================
 # PROCESSED DATASET
@@ -39,7 +40,24 @@ NO_MINE_DIR = PROCESSED_DIR / "No_Mine"
 # METADATA
 # =====================================================
 
-METADATA_FILE = RESULTS_DIR / "metadata_checked.csv"
+RAW_METADATA_FILE = RESULTS_DIR / "metadata.csv"
+CHECKED_METADATA_FILE = RESULTS_DIR / "metadata_checked.csv"
+METADATA_FILE = CHECKED_METADATA_FILE
+
+DUPLICATE_IMAGES_FILE = RESULTS_DIR / "duplicate_images.csv"
+
+# =====================================================
+# REPORTS
+# =====================================================
+
+PREPROCESSING_REPORT_FILE = RESULTS_DIR / "preprocessing_report.txt"
+SPLIT_REPORT_FILE = RESULTS_DIR / "split_report.txt"
+VERIFICATION_REPORT_FILE = RESULTS_DIR / "verification_report.txt"
+DATASET_SUMMARY_FILE = GRAPHS_DIR / "dataset_summary.csv"
+
+FLIGHT_DISTRIBUTION_FILE = RESULTS_DIR / "flight_distribution.csv"
+DEPTH_DISTRIBUTION_FILE = RESULTS_DIR / "depth_distribution.csv"
+CLASS_DISTRIBUTION_FILE = RESULTS_DIR / "class_distribution.csv"
 
 # =====================================================
 # IMAGE SETTINGS
@@ -62,9 +80,10 @@ RANDOM_STATE = 42
 # CREATE DIRECTORIES
 # =====================================================
 
-RESULTS_DIR.mkdir(exist_ok=True)
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
 
-PROCESSED_DIR.mkdir(exist_ok=True)
+PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 MINE_DIR.mkdir(parents=True, exist_ok=True)
 NO_MINE_DIR.mkdir(parents=True, exist_ok=True)

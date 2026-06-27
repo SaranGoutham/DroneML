@@ -12,10 +12,17 @@ from __future__ import annotations
 
 import collections
 import datetime
+import sys
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
 from PIL import Image, UnidentifiedImageError
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.preprocessing.config import PROCESSED_DIR, VERIFICATION_REPORT_FILE
 
 # ---------------------------------------------------------------------------
 # Helper Types
@@ -248,12 +255,11 @@ def _write_report(base_path: Path, report_path: Path) -> None:
 def main() -> None:
     """Run the full verification pipeline and generate the report.
 
-    The default ``base_path`` is ``processed_dataset`` relative to the current
-    working directory. Adjust as needed.
+    The default ``base_path`` is the project-rooted ``processed_dataset``.
     """
-    base_path = Path("processed_dataset")
+    base_path = PROCESSED_DIR
     print_summary(base_path)
-    report_path = Path("results/verification_report.txt")
+    report_path = VERIFICATION_REPORT_FILE
     _write_report(base_path, report_path)
     print(f"Verification report written to {report_path}")
 

@@ -14,19 +14,24 @@ No image resizing is performed because all images are already 224×224.
 from __future__ import annotations
 
 import tensorflow as tf
+import sys
 from pathlib import Path
 from typing import List
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # The training augmentation pipeline defined in `augment.py`.
 # Import is delayed until runtime to avoid circular imports when the module is
 # executed as a script.
 from src.preprocessing.augment import build_train_augmentation
+from src.preprocessing.config import IMAGE_SIZE, PROCESSED_DIR, RANDOM_STATE
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-IMAGE_SIZE = (224, 224)        # (height, width) – matches the pre‑processed images
 BATCH_SIZE = 32
 AUTOTUNE = tf.data.AUTOTUNE
 
@@ -61,7 +66,7 @@ def load_split(split_path: Path, *, shuffle: bool = False) -> tf.data.Dataset:
         batch_size=BATCH_SIZE,
         image_size=IMAGE_SIZE,
         shuffle=shuffle,
-        seed=42,
+        seed=RANDOM_STATE,
         validation_split=None,
         subset=None,
     )
@@ -93,7 +98,7 @@ def prepare_dataset(dataset: tf.data.Dataset, *, training: bool = False) -> tf.d
     dataset = dataset.cache().prefetch(AUTOTUNE)
     return dataset
 
-def create_datasets(base_path: Path = Path("processed_dataset")) -> tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset,List[str]]:
+def create_datasets(base_path: Path = PROCESSED_DIR) -> tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset,List[str]]:
     """Create training, validation and test datasets.
 
     The function loads each split, applies the appropriate preprocessing/augmentation
@@ -139,7 +144,7 @@ def print_dataset_info(train_ds: tf.data.Dataset, val_ds: tf.data.Dataset, test_
 def main() -> None:
     """Run the full dataset creation pipeline and display information.
     """
-    base_path = Path("processed_dataset")
+    base_path = PROCESSED_DIR
     train_ds, val_ds, test_ds,class_names = create_datasets(base_path)
     print_dataset_info(train_ds, val_ds, test_ds,class_names)
     print("Dataset Ready")

@@ -48,12 +48,18 @@ from typing import Dict, List, Tuple
 
 from PIL import Image
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.preprocessing.config import IMAGE_SIZE, PROCESSED_DIR, RANDOM_STATE
+
 # ---------------------------------------------------------------------------
 # CONFIGURATION / CONSTANTS
 # ---------------------------------------------------------------------------
 
 # Root directory containing the split dataset (produced by ``split_by_flight.py``).
-DATASET_ROOT: Path = Path("processed_dataset")
+DATASET_ROOT: Path = PROCESSED_DIR
 
 # Expected class folder names.
 CLASSES: List[str] = ["Mine", "No_Mine"]
@@ -63,7 +69,7 @@ CLASS_TO_INDEX: Dict[str, int] = {"No_Mine": 0, "Mine": 1}
 INDEX_TO_CLASS: Dict[int, str] = {v: k for k, v in CLASS_TO_INDEX.items()}
 
 # Expected image dimensions (width, height).
-EXPECTED_SIZE: Tuple[int, int] = (224, 224)
+EXPECTED_SIZE: Tuple[int, int] = IMAGE_SIZE
 
 # ---------------------------------------------------------------------------
 # Helper utilities
@@ -194,7 +200,7 @@ def load_dataset(root: Path = DATASET_ROOT) -> Tuple[List[Dict], List[Dict], Lis
     test_records = load_split("test", root)
 
     # 3️⃣ Shuffle training set only.
-    random.Random(42).shuffle(train_records)
+    random.Random(RANDOM_STATE).shuffle(train_records)
 
     # 4️⃣ Print a concise summary.
     print_statistics(train_records, val_records, test_records)

@@ -1,2 +1,0 @@
-The dataset is organized by folders with the date of each flight, followed by subfolders with the
-acquired formats and finally folders are named for each of the mine locations with their respective depth value.

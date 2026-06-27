@@ -46,19 +46,29 @@ from typing import Dict, List, Tuple
 
 from tqdm import tqdm
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.preprocessing.config import (
+    PROCESSED_DIR as CONFIG_PROCESSED_DIR,
+    RESULTS_DIR as CONFIG_RESULTS_DIR,
+    SPLIT_REPORT_FILE,
+)
+
 # ---------------------------------------------------------------------------
 # CONFIGURATION
 # ---------------------------------------------------------------------------
 
 # Root of the processed PNG dataset created by ``preprocess_tiff.py``.
-PROCESSED_DIR: Path = Path("processed_dataset")
+PROCESSED_DIR: Path = CONFIG_PROCESSED_DIR
 
 # Output directory – split folders are created *inside* the processed directory.
 OUTPUT_DIR: Path = PROCESSED_DIR
 
 # Report location.
-RESULTS_DIR: Path = Path("results")
-REPORT_FILE: Path = RESULTS_DIR / "split_report.txt"
+RESULTS_DIR: Path = CONFIG_RESULTS_DIR
+REPORT_FILE: Path = SPLIT_REPORT_FILE
 
 # Class sub‑folders – must match what ``preprocess_tiff.py`` created.
 CLASSES: List[str] = ["Mine", "No_Mine"]

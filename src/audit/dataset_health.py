@@ -1,6 +1,20 @@
+import sys
+from pathlib import Path
+
 import pandas as pd
 
-df = pd.read_csv(r"D:\DroneML\results\metadata_checked.csv")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.preprocessing.config import (
+    CHECKED_METADATA_FILE,
+    CLASS_DISTRIBUTION_FILE,
+    DEPTH_DISTRIBUTION_FILE,
+    FLIGHT_DISTRIBUTION_FILE,
+)
+
+df = pd.read_csv(CHECKED_METADATA_FILE)
 
 print("="*60)
 print("DATASET HEALTH REPORT")
@@ -40,15 +54,15 @@ print(df["corrupted"].sum())
 print("="*60)
 
 df.groupby("flight_date").size().to_csv(
-    r"D:\DroneML\results\flight_distribution.csv"
+    FLIGHT_DISTRIBUTION_FILE
 )
 
 df.groupby("depth").size().to_csv(
-    r"D:\DroneML\results\depth_distribution.csv"
+    DEPTH_DISTRIBUTION_FILE
 )
 
 df.groupby("label").size().to_csv(
-    r"D:\DroneML\results\class_distribution.csv"
+    CLASS_DISTRIBUTION_FILE
 )
 
 print("CSV Reports Saved.")

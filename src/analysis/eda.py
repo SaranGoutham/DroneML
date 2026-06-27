@@ -1,16 +1,29 @@
 import os
+import sys
+from pathlib import Path
+
 import pandas as pd
 import matplotlib.pyplot as plt
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.preprocessing.config import (
+    CHECKED_METADATA_FILE,
+    DATASET_SUMMARY_FILE,
+    GRAPHS_DIR,
+)
 
 # =====================================
 # CONFIGURATION
 # =====================================
 
-METADATA_FILE = r"D:\DroneML\results\metadata_checked.csv"
+METADATA_FILE = CHECKED_METADATA_FILE
 
-OUTPUT_DIR = r"D:\DroneML\results\graphs"
+OUTPUT_DIR = GRAPHS_DIR
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # =====================================
 # LOAD DATA
@@ -175,7 +188,7 @@ summary = pd.DataFrame({
 })
 
 summary.to_csv(
-    os.path.join(OUTPUT_DIR,"dataset_summary.csv"),
+    DATASET_SUMMARY_FILE,
     index=False
 )
 

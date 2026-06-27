@@ -1,11 +1,22 @@
 import os
+import sys
 from pathlib import Path
 import pandas as pd
 from PIL import Image
 import hashlib
 
-METADATA_FILE = r"D:\DroneML\results\metadata.csv"
-OUTPUT_FILE = r"D:\DroneML\results\metadata_checked.csv"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.preprocessing.config import (
+    CHECKED_METADATA_FILE,
+    DUPLICATE_IMAGES_FILE,
+    RAW_METADATA_FILE,
+)
+
+METADATA_FILE = RAW_METADATA_FILE
+OUTPUT_FILE = CHECKED_METADATA_FILE
 
 df = pd.read_csv(METADATA_FILE)
 
@@ -89,7 +100,7 @@ for i, row in df.iterrows():
 duplicates = df[df.duplicated("image_hash", keep=False)]
 
 duplicates.to_csv(
-    r"D:\DroneML\results\duplicate_images.csv",
+    DUPLICATE_IMAGES_FILE,
     index=False
 )
 
