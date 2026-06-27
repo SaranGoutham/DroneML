@@ -54,13 +54,20 @@ from tqdm import tqdm
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Paths (relative to the project root, i.e. the directory where this script lives)
-PROJECT_ROOT = Path(r"D:\DroneML")
+from src.preprocessing.config import (
+    DATASET_DIR,
+    RESULTS_DIR,
+    PROCESSED_DIR,
+    METADATA_FILE,
+)
 
-DATASET_ROOT = PROJECT_ROOT / "dataset" / "DatainBrief_dataset_1"
-RESULTS_DIR = PROJECT_ROOT / "results"
-OUTPUT_DIR = PROJECT_ROOT / "processed_dataset"
-
-METADATA_CSV = RESULTS_DIR / "metadata_checked.csv"
+DATASET_ROOT = DATASET_DIR
+if not DATASET_ROOT.exists():
+    raise FileNotFoundError(
+        f"Dataset not found: {DATASET_ROOT}"
+    )
+OUTPUT_DIR = PROCESSED_DIR
+METADATA_CSV = METADATA_FILE
 REPORT_FILE = RESULTS_DIR / "preprocessing_report.txt"
 # Image processing parameters
 TARGET_SIZE    = (224, 224)
