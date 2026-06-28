@@ -37,7 +37,6 @@ import numpy as np
 import sys
 from pathlib import Path
 import logging
-from typing import Tuple
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers, regularizers
@@ -94,7 +93,7 @@ LEARNING_RATE: float = MOBILENETV3_LEARNING_RATE  # frozen‑backbone phase
 # ---------------------------------------------------------------------------
 
 def build_model(
-    input_shape: Tuple[int, int, int] = INPUT_SHAPE,
+    input_shape: tuple[int, int, int] = INPUT_SHAPE,
     learning_rate: float = LEARNING_RATE,
     trainable_backbone: bool = False,
     random_seed: int = RANDOM_STATE,
@@ -270,7 +269,6 @@ def verify_output_shape(model: keras.Model) -> None:
     out = model(dummy, training=False)
     assert out.shape == (1, 1), f"Unexpected output shape: {out.shape}"
     logging.info("[PASS] Forward‑pass OK → output shape : %s", tuple(out.shape))
-    logging.info("Raw sigmoid value : %.6f", out.numpy()[0, 0])
     logging.info(
         "Output Probability : %.6f",
         float(out.numpy()[0, 0])

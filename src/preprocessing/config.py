@@ -86,6 +86,23 @@ MOBILENETV3_L2_WEIGHT: float = 1e-4
 
 # Directory for saving model architecture diagrams
 FIGURES_DIR = RESULTS_DIR / "figures"
+# =====================================================
+# TRAINING OUTPUT DIRECTORIES
+# =====================================================
+
+MODELS_DIR = RESULTS_DIR / "models"
+CHECKPOINTS_DIR = RESULTS_DIR / "checkpoints"
+HISTORY_DIR = RESULTS_DIR / "history"
+LOGS_DIR = RESULTS_DIR / "logs"
+
+BEST_MODEL_PATH = CHECKPOINTS_DIR / "best_model.keras"
+FINE_TUNED_MODEL_PATH = CHECKPOINTS_DIR / "best_model_finetuned.keras"
+
+TRAINING_HISTORY_JSON = HISTORY_DIR / "training_history.json"
+TRAINING_HISTORY_PKL = HISTORY_DIR / "training_history.pkl"
+
+TRAINING_LOG_CSV = LOGS_DIR / "training_log.csv"
+TENSORBOARD_LOG_DIR = LOGS_DIR / "tensorboard"
 
 # Ensure directories exist (including figures)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -96,3 +113,17 @@ PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 MINE_DIR.mkdir(parents=True, exist_ok=True)
 NO_MINE_DIR.mkdir(parents=True, exist_ok=True)
+# =====================================================
+# TRAINING CONFIGURATION
+# =====================================================
+
+BATCH_SIZE = 32
+EPOCHS = 50
+PATIENCE = 8
+
+# Fine-tuning
+FINE_TUNE_EPOCHS = 20
+FINE_TUNE_LEARNING_RATE = 1e-5
+
+# TensorBoard
+TENSORBOARD_UPDATE_FREQ = "epoch"
