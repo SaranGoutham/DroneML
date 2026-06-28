@@ -30,14 +30,23 @@ Public API
 - ``main``                – CLI entry point.
 """
 
-from __future__ import annotations
 
+from __future__ import annotations
+import random
+import numpy as np
 import sys
 from pathlib import Path
-
+import logging
+from typing import Tuple
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers, regularizers
+
+# Configure module-level logger
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(levelname)s] %(message)s",
+)
 
 # ---------------------------------------------------------------------------
 # Project path setup
@@ -47,84 +56,80 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.preprocessing.config import IMAGE_SIZE, RESULTS_DIR, RANDOM_STATE
+from src.preprocessing.config import (
+    IMAGE_SIZE,
+    RESULTS_DIR,
+    RANDOM_STATE,
+    MOBILENETV3_LEARNING_RATE,
+    MOBILENETV3_DENSE_UNITS_1,
+    MOBILENETV3_DENSE_UNITS_2,
+    MOBILENETV3_DROPOUT_RATE_1,
+    MOBILENETV3_DROPOUT_RATE_2,
+    MOBILENETV3_L2_WEIGHT,
+    FIGURES_DIR,
+)
+
+
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-INPUT_SHAPE: tuple = (*IMAGE_SIZE, 3)        # (224, 224, 3)
+INPUT_SHAPE: tuple[int, int, int] = (*IMAGE_SIZE, 3)        # (224, 224, 3)
 NUM_CLASSES: int = 1                          # Binary → single sigmoid unit
 
-# Classifier head hyper-parameters
-DENSE_UNITS_1: int    = 256
-DENSE_UNITS_2: int    = 128
-DROPOUT_RATE_1: float = 0.40
-DROPOUT_RATE_2: float = 0.30
-L2_WEIGHT: float      = 1e-4
+# Classifier head hyper‑parameters (imported from config)
+DENSE_UNITS_1: int    = MOBILENETV3_DENSE_UNITS_1
+DENSE_UNITS_2: int    = MOBILENETV3_DENSE_UNITS_2
+DROPOUT_RATE_1: float = MOBILENETV3_DROPOUT_RATE_1
+DROPOUT_RATE_2: float = MOBILENETV3_DROPOUT_RATE_2
+L2_WEIGHT: float      = MOBILENETV3_L2_WEIGHT
 
 # Optimiser
-LEARNING_RATE: float = 1e-3    # frozen-backbone phase
+LEARNING_RATE: float = MOBILENETV3_LEARNING_RATE  # frozen‑backbone phase
+
 
 # ---------------------------------------------------------------------------
 # Model builder
 # ---------------------------------------------------------------------------
 
 def build_model(
-    input_shape: tuple = INPUT_SHAPE,
+    input_shape: Tuple[int, int, int] = INPUT_SHAPE,
     learning_rate: float = LEARNING_RATE,
     trainable_backbone: bool = False,
     random_seed: int = RANDOM_STATE,
-) -> keras.Model:
+) -> tuple[keras.Model, keras.Model]:
     """Construct and compile the MobileNetV3-Large baseline model.
-
-    Parameters
-    ----------
-    input_shape:
-        HWC tuple for a single image. Default ``(224, 224, 3)``.
-    learning_rate:
-        Initial learning rate for the Adam optimiser.
-    trainable_backbone:
-        ``False`` (default) → backbone weights are frozen (baseline phase).
-        ``True`` → all backbone weights are trainable (fine-tuning phase).
-    random_seed:
-        Seed passed to Dropout layers for reproducibility.
 
     Returns
     -------
-    keras.Model
-        A compiled Keras model ready for ``.fit()``.
-
-    Notes
-    -----
-    * MobileNetV3-Large expects float32 pixel values **already normalised**
-      to ``[0, 1]``.  The data pipeline in ``create_tf_dataset.py`` performs
-      this division by 255.
-    * ``include_preprocessing=False`` because our pipeline already normalises
-      the images.
-    * ``include_top=False`` removes the original ImageNet classifier so we
-      can attach a custom binary head.
+    tuple[keras.Model, keras.Model]
+        (model, backbone) where ``model`` is the compiled Keras model and ``backbone``
+        is the MobileNetV3Large feature extractor.
     """
+    random.seed(random_seed)
+    np.random.seed(random_seed)
     tf.random.set_seed(random_seed)
-
     # ------------------------------------------------------------------
     # 1. Backbone – MobileNetV3-Large (ImageNet weights, no top)
     # ------------------------------------------------------------------
     backbone = keras.applications.MobileNetV3Large(
         input_shape=input_shape,
         include_top=False,              # remove ImageNet classifier
-        weights="imagenet",             # pre-trained ImageNet weights
+        weights="imagenet",             # pre‑trained ImageNet weights
         include_preprocessing=False,    # images are already in [0, 1]
         pooling=None,                   # we add our own pooling below
     )
     backbone.trainable = trainable_backbone  # freeze for baseline phase
-
-    # ------------------------------------------------------------------
+    logging.info("Backbone Name   : %s", backbone.name)
+    logging.info("Backbone Layers : %d", len(backbone.layers))
+    logging.info("Backbone Frozen : %s", not backbone.trainable)
+       # ------------------------------------------------------------------
     # 2. Build model using Functional API
     # ------------------------------------------------------------------
     inputs = keras.Input(shape=input_shape, name="input_image")
 
-    # Pass through the frozen backbone.
+    # Pass through the backbone.
     # training=False keeps BatchNorm layers in inference mode while frozen.
     x = backbone(inputs, training=False)
 
@@ -177,7 +182,7 @@ def build_model(
         ],
     )
 
-    return model
+    return model, backbone
 
 
 # ---------------------------------------------------------------------------
@@ -185,84 +190,212 @@ def build_model(
 # ---------------------------------------------------------------------------
 
 def get_model_summary(model: keras.Model) -> None:
-    """Print a structured summary of the model layers and parameters."""
-    print("\n" + "=" * 60)
-    print(f"  MODEL : {model.name}")
-    print("=" * 60)
-    model.summary(expand_nested=False, show_trainable=True)
+    """Print a structured summary of the model layers and parameters.
 
-    total     = model.count_params()
-    trainable = sum(tf.size(w).numpy() for w in model.trainable_weights)
-    frozen    = total - trainable
+    The summary is also written to ``results/model_summary.txt`` for
+    reproducibility.
+    """
+    # Ensure the results directory exists
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    summary_path = RESULTS_DIR / "model_summary.txt"
 
-    print("\n" + "-" * 60)
-    print(f"  Total Parameters    : {total:,}")
-    print(f"  Trainable           : {trainable:,}")
-    print(f"  Non-Trainable       : {frozen:,}")
-    print("-" * 60 + "\n")
+    # Capture Keras summary output
+    lines: list[str] = []
+    def _collect(line: str) -> None:
+        lines.append(line)
+
+    model.summary(print_fn=_collect, expand_nested=False, show_trainable=True)
+
+    # Write to file
+    with open(summary_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+    total_params = model.count_params()
+    trainable_params = sum(
+        tf.keras.backend.count_params(w)
+        for w in model.trainable_weights
+    )
+
+    non_trainable_params = (
+        total_params - trainable_params
+    )
+    # Logging output
+    logging.info("MODEL SUMMARY – %s", model.name)
+    logging.info("%s", "=" * 60)
+    for line in lines:
+        logging.info(line)
+    logging.info("%s", "-" * 60)
+    logging.info("Total Parameters    : %s", f"{total_params:,}")
+    logging.info("Trainable Params    : %s", f"{trainable_params:,}")
+    logging.info("Non‑Trainable Params: %s", f"{non_trainable_params:,}")
+    logging.info("%s", "=" * 60)
+
+def freeze_backbone(backbone: keras.Model) -> None:
+    """Freeze all layers of the backbone (make them non‑trainable)."""
+    backbone.trainable = False
+    for layer in backbone.layers:
+        layer.trainable = False
+    logging.info("Backbone frozen – %d layers set to non‑trainable.", len(backbone.layers))
+
+def unfreeze_backbone(backbone: keras.Model) -> None:
+    """Unfreeze the entire backbone (make all layers trainable)."""
+    backbone.trainable = True
+    for layer in backbone.layers:
+        layer.trainable = True
+    logging.info("Backbone unfrozen – %d layers set to trainable.", len(backbone.layers))
+
+def unfreeze_top_layers(backbone: keras.Model, num_layers: int = 10) -> None:
+    """Unfreeze the top *num_layers* of the backbone while keeping the rest frozen.
+
+    Parameters
+    ----------
+    num_layers: int
+        Number of layers from the end of the backbone to set trainable.
+    """
+    # Ensure backbone is initially frozen
+    freeze_backbone(backbone)
+    # Unfreeze the specified top layers
+    for layer in backbone.layers[-num_layers:]:
+        layer.trainable = True
+    logging.info("Top %d backbone layers unfrozen.", num_layers)
+
 
 
 def verify_output_shape(model: keras.Model) -> None:
-    """Run a single random forward-pass to confirm the output shape is (1, 1)."""
+    """Run a single random forward‑pass to confirm the output shape.
+
+    Also prints the number of trainable and frozen weights.
+    """
     dummy = tf.random.uniform((1, *INPUT_SHAPE))
-    out   = model(dummy, training=False)
+    out = model(dummy, training=False)
     assert out.shape == (1, 1), f"Unexpected output shape: {out.shape}"
-    print(f"[PASS] Forward-pass OK  ->  output shape : {tuple(out.shape)}")
-    print(f"       Raw sigmoid value : {out.numpy()[0, 0]:.6f}")
-    prediction = "Mine" if out.numpy()[0, 0] >= 0.5 else "No_Mine"
-    print(f"       Prediction (random input) : {prediction}")
+    logging.info("[PASS] Forward‑pass OK → output shape : %s", tuple(out.shape))
+    logging.info("Raw sigmoid value : %.6f", out.numpy()[0, 0])
+    logging.info(
+        "Output Probability : %.6f",
+        float(out.numpy()[0, 0])
+    )   
+
+    # Additional diagnostics
+    trainable_weights = len(model.trainable_weights)
+    frozen_weights = len(model.weights) - trainable_weights
+    logging.info("Trainable Weights  : %d", trainable_weights)
+    logging.info("Frozen Weights     : %d", frozen_weights)
 
 
-def save_model_diagram(model: keras.Model, out_dir: Path = RESULTS_DIR) -> None:
-    """Save a model architecture diagram to *out_dir*/model_architecture.png.
 
-    Requires the ``pydot`` and ``graphviz`` packages.  Skips silently if they
-    are not available.
+def save_model_artifacts(model: keras.Model, backbone: keras.Model, out_dir: Path = RESULTS_DIR) -> None:
+    """Save model summary, architecture JSON, and initial weights.
+
+    This function is intended for the *untrained* baseline model.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "model_architecture.png"
+
+    # 1. Model summary (already written by get_model_summary)
+    # Ensure summary file exists – get_model_summary writes it.
+    # 2. Architecture JSON
+    json_path = out_dir / "mobilenetv3.json"
+    with open(json_path, "w", encoding="utf-8") as f_json:
+        f_json.write(model.to_json())
+    logging.info("[INFO] Model architecture JSON saved → %s", json_path)
+
+    # 3. Initial untrained model (weights only)
+    keras_path = out_dir / "mobilenetv3_initial.keras"
+    model.save(keras_path)
+    logging.info("[INFO] Initial untrained model saved → %s", keras_path)
+
+    # 4. Additional diagnostics
+    input_shape = model.input_shape[1:]
+    output_shape = model.output_shape[1:]
+    total_params = model.count_params()
+    trainable_params = sum(tf.keras.backend.count_params(w) for w in model.trainable_weights)
+    non_trainable_params = total_params - trainable_params
+    backbone_layers = len(backbone.layers)
+    backbone_frozen = not backbone.trainable
+
+    logging.info("--- Model Diagnostics ---")
+    logging.info("Input Shape          : %s", input_shape)
+    logging.info("Output Shape         : %s", output_shape)
+    logging.info("Total Parameters     : %s", f"{total_params:,}")
+    logging.info("Trainable Parameters : %s", f"{trainable_params:,}")
+    logging.info("Non‑Trainable Params : %s", f"{non_trainable_params:,}")
+    logging.info("Trainable Weights    : %d", len(model.trainable_weights))
+    logging.info("Frozen Weights       : %d", len(model.weights) - len(model.trainable_weights))
+    logging.info("Backbone Frozen?    : %s", backbone_frozen)
+    logging.info("Backbone Layers Count: %d", backbone_layers)
+
+
+def save_model_diagram(
+    model: keras.Model,
+    out_dir: Path = FIGURES_DIR,
+) -> None:
+    """
+    Save the model architecture diagram.
+
+    Requires:
+        pip install pydot graphviz
+
+    Also requires Graphviz to be installed on the system.
+    """
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    output_path = out_dir / "model_architecture.png"
+
     try:
         keras.utils.plot_model(
             model,
-            to_file=str(out_path),
+            to_file=str(output_path),
             show_shapes=True,
             show_layer_names=True,
+            show_dtype=False,
             expand_nested=False,
-            dpi=96,
+            dpi=120,
         )
-        print(f"[INFO] Model diagram saved → {out_path}")
-    except Exception as exc:   # pydot / graphviz not installed
-        print(f"[WARN] Could not save model diagram: {exc}")
 
+        logging.info("Model architecture diagram saved → %s", output_path)
 
+    except Exception as exc:
+        logging.warning(
+            "Could not generate architecture diagram: %s",
+            exc,
+        )
 # ---------------------------------------------------------------------------
 # CLI entry-point
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    """Build the baseline model, print summary, and verify a forward-pass."""
-    print("\n" + "=" * 60)
-    print("  PHASE 8 - BASELINE MODEL : MobileNetV3-Large")
-    print("=" * 60)
+    """Build the baseline model, output diagnostics, and save artifacts."""
+    logging.info("%s", "=" * 60)
+    logging.info("PHASE 8 - BASELINE MODEL : MobileNetV3-Large")
+    logging.info("%s", "=" * 60)
 
-    print("\n[1/4] Building model ...")
-    model = build_model(
+    logging.info("[1/6] Building model ...")
+    model, backbone = build_model(
         input_shape=INPUT_SHAPE,
         learning_rate=LEARNING_RATE,
         trainable_backbone=False,   # backbone frozen for baseline phase
     )
 
-    print("[2/4] Model summary ...")
+    logging.info("[2/6] Model summary ...")
     get_model_summary(model)
 
-    print("[3/4] Verifying forward-pass ...")
+    logging.info("[3/6] Verifying forward‑pass ...")
     verify_output_shape(model)
 
-    print("[4/4] Saving architecture diagram ...")
+    logging.info("[4/6] Saving architecture diagram ...")
     save_model_diagram(model)
 
-    print("\n[DONE] Baseline model ready for training (Phase 9).")
-    print("=" * 60 + "\n")
+    logging.info("[5/6] Saving model artifacts ...")
+    save_model_artifacts(model, backbone)
+
+    logging.info("[6/6] Baseline model completed.")
+
+
+    logging.info("%s", "=" * 60)
+    logging.info("DONE – Baseline model ready for training (Phase 9).")
+    logging.info("%s", "=" * 60)
+
 
 
 if __name__ == "__main__":
