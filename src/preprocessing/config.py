@@ -85,17 +85,3 @@ PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 MINE_DIR.mkdir(parents=True, exist_ok=True)
 NO_MINE_DIR.mkdir(parents=True, exist_ok=True)
-# =====================================================
-# TRAINING CONFIGURATION
-# =====================================================
-
-BATCH_SIZE = 32
-EPOCHS = 50
-PATIENCE = 8
-
-# Fine-tuning
-FINE_TUNE_EPOCHS = 20
-FINE_TUNE_LEARNING_RATE = 1e-5
-
-# TensorBoard
-TENSORBOARD_UPDATE_FREQ = "epoch"

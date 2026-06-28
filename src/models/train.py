@@ -38,12 +38,18 @@ from __future__ import annotations
 import sys
 import pickle
 import datetime
+import json 
+import logging
 from pathlib import Path
 
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(levelname)s] %(message)s",
+)
 # ---------------------------------------------------------------------------
 # Project path setup
 # ---------------------------------------------------------------------------
@@ -54,30 +60,19 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.preprocessing.config import PROCESSED_DIR, RESULTS_DIR, RANDOM_STATE
 from src.preprocessing.create_tf_dataset import create_datasets
-from src.models.mobilevnetv3 import build_model, INPUT_SHAPE, LEARNING_RATE
+from src.models.mobilenetv3 import build_model, INPUT_SHAPE
+from src.models.config import *
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-# Output paths
-BEST_MODEL_PATH   = RESULTS_DIR / "best_model.keras"
-HISTORY_PATH      = RESULTS_DIR / "training_history.pkl"
-TENSORBOARD_DIR   = RESULTS_DIR / "logs"
-
-# Training config
-MAX_EPOCHS        = 100
-EARLY_STOP_PAT    = 10    # EarlyStopping patience
-REDUCE_LR_PAT     = 5     # ReduceLROnPlateau patience
-REDUCE_LR_FACTOR  = 0.2   # Multiply LR by this on plateau
-MIN_LR            = 1e-7  # Floor for learning rate
-
+def count_images(folder: Path) -> int:
+    """Count all supported image files inside a folder."""
+    extensions = ("*.png", "*.jpg", "*.jpeg", "*.tif", "*.tiff")
+    return sum(len(list(folder.glob(ext))) for ext in extensions)
 # Class weights (computed from train split: Mine=220, No_Mine=30, Total=250)
 # Formula: weight_class = total / (num_classes * count_class)
-CLASS_WEIGHT: dict = {
-    0: 4.1667,   # No_Mine (rare  -> penalise misclassification more)
-    1: 0.5682,   # Mine    (common -> penalise less)
-}
 
 # ---------------------------------------------------------------------------
 # Helper: Compute class weights dynamically from the dataset folder
@@ -89,18 +84,26 @@ def compute_class_weights(train_dir: Path) -> dict:
     Returns
     -------
     dict
-        {0: weight_no_mine, 1: weight_mine}
+        {0: weight_mine, 1: weight_no_mine}
     """
-    mine_count    = len(list((train_dir / "Mine").glob("*.png")))
-    no_mine_count = len(list((train_dir / "No_Mine").glob("*.png")))
+    mine_count = count_images(train_dir / "Mine")
+    no_mine_count = count_images(train_dir / "No_Mine")
+    if mine_count == 0 or no_mine_count == 0:
+        raise ValueError("Training dataset must contain both Mine and No_Mine images."
+        )
+
     total         = mine_count + no_mine_count
     num_classes   = 2
-
+    w_mine = round(total / (num_classes * mine_count), 4)
     w_no_mine = round(total / (num_classes * no_mine_count), 4)
-    w_mine    = round(total / (num_classes * mine_count),    4)
 
-    return {0: w_no_mine, 1: w_mine}
-
+    # TensorFlow labels:
+    # 0 -> Mine
+    # 1 -> No_Mine
+    return {
+        0: w_mine,
+        1: w_no_mine,
+    }
 
 # ---------------------------------------------------------------------------
 # Helper: Build callbacks
@@ -132,7 +135,7 @@ def build_callbacks(log_dir: Path, model_path: Path) -> list:
         # Stop training when val_loss stops improving
         keras.callbacks.EarlyStopping(
             monitor              = "val_loss",
-            patience             = EARLY_STOP_PAT,
+            patience             = PATIENCE,
             restore_best_weights = True,   # revert to best epoch at the end
             verbose              = 1,
         ),
@@ -141,8 +144,8 @@ def build_callbacks(log_dir: Path, model_path: Path) -> list:
         keras.callbacks.ReduceLROnPlateau(
             monitor  = "val_loss",
             factor   = REDUCE_LR_FACTOR,
-            patience = REDUCE_LR_PAT,
-            min_lr   = MIN_LR,
+            patience = max(2, PATIENCE // 2),
+            min_lr   = MIN_LEARNING_RATE,
             verbose  = 1,
         ),
 
@@ -160,7 +163,7 @@ def build_callbacks(log_dir: Path, model_path: Path) -> list:
             log_dir          = str(run_dir),
             histogram_freq   = 1,
             write_graph      = True,
-            update_freq      = "epoch",
+            update_freq      = TENSORBOARD_UPDATE_FREQ,
         ),
     ]
 
@@ -176,17 +179,17 @@ def print_config(class_weights: dict) -> None:
     print("\n" + "=" * 60)
     print("  PHASE 9 - MODEL TRAINING : MobileNetV3-Large (Baseline)")
     print("=" * 60)
-    print(f"\n  Max Epochs          : {MAX_EPOCHS}")
-    print(f"  EarlyStopping pat.  : {EARLY_STOP_PAT}")
-    print(f"  ReduceLR patience   : {REDUCE_LR_PAT}")
+    print(f"\n  Max Epochs          : {EPOCHS}")
+    print(f"  EarlyStopping pat.  : {PATIENCE}")
+    print(f"  ReduceLR patience   : {max(2, PATIENCE//2)}")
     print(f"  ReduceLR factor     : {REDUCE_LR_FACTOR}")
-    print(f"  Min LR              : {MIN_LR}")
-    print(f"  Learning Rate       : {LEARNING_RATE}")
+    print(f"  Min LR              : {MIN_LEARNING_RATE}")
+    print(f"  Learning Rate       : {MOBILENETV3_LEARNING_RATE}")
     print(f"  Backbone            : Frozen")
     print(f"  Class Weights       : {class_weights}")
     print(f"  Best Model Path     : {BEST_MODEL_PATH}")
-    print(f"  History Path        : {HISTORY_PATH}")
-    print(f"  TensorBoard Logs    : {TENSORBOARD_DIR}")
+    print(f"  History Path        : {TRAINING_HISTORY_PKL}")
+    print(f"  TensorBoard Logs    : {TENSORBOARD_LOG_DIR}")
     print("=" * 60 + "\n")
 
 
@@ -197,9 +200,14 @@ def print_config(class_weights: dict) -> None:
 def save_history(history: keras.callbacks.History) -> None:
     """Serialise the training history dictionary to a pickle file."""
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    with open(HISTORY_PATH, "wb") as f:
+    with open(TRAINING_HISTORY_PKL, "wb") as f:
         pickle.dump(history.history, f)
-    print(f"\n[INFO] Training history saved -> {HISTORY_PATH}")
+
+    with open(TRAINING_HISTORY_JSON, "w", encoding="utf-8") as f:
+        json.dump(history.history, f, indent=4)
+
+    print(f"\n[INFO] Training history saved -> {TRAINING_HISTORY_PKL}")
+    print(f"[INFO] JSON history saved -> {TRAINING_HISTORY_JSON}")
 
 
 # ---------------------------------------------------------------------------
@@ -259,15 +267,15 @@ def train() -> keras.callbacks.History:
     class_weights = compute_class_weights(train_dir)
 
     # 3. Load datasets
-    print("[1/5] Loading datasets ...")
+    logging.info("[1/6] Loading datasets ...")
     train_ds, val_ds, test_ds, class_names = create_datasets(PROCESSED_DIR)
-    print(f"      Classes : {class_names}")
+    logging.info( "Classes : %s",class_names)
 
     # 4. Build model
-    print("[2/5] Building model ...")
+    logging.info("[2/6] Building model ...")
     model, _backbone = build_model(
         input_shape        = INPUT_SHAPE,
-        learning_rate      = LEARNING_RATE,
+        learning_rate      = MOBILENETV3_LEARNING_RATE,
         trainable_backbone = False,   # baseline: backbone frozen
         random_seed        = RANDOM_STATE,
     )
@@ -276,33 +284,52 @@ def train() -> keras.callbacks.History:
     print_config(class_weights)
 
     # 6. Build callbacks
-    print("[3/5] Setting up callbacks ...")
-    callbacks = build_callbacks(TENSORBOARD_DIR, BEST_MODEL_PATH)
+    print("[3/6] Setting up callbacks ...")
+    callbacks = build_callbacks(TENSORBOARD_LOG_DIR, BEST_MODEL_PATH)
 
     # 7. Train
-    print("[4/5] Training ...\n")
+    print("[4/6] Training ...\n")
     history = model.fit(
         train_ds,
         validation_data = val_ds,
-        epochs          = MAX_EPOCHS,
+        epochs          = EPOCHS,
         callbacks       = callbacks,
         class_weight    = class_weights,
         verbose         = 1,
     )
 
     # 8. Save history
-    print("[5/5] Saving training history ...")
+    print("[5/6] Saving training history ...")
     save_history(history)
 
-    # 9. Summary
+    # 9. Evaluate on test dataset
+    print("[6/6] Evaluating model on test dataset...")
+    results = model.evaluate(
+        test_ds,
+        return_dict=True,
+        verbose=1,
+    )
+
+    print("\nTest Results")
+    print("-" * 40)
+
+    for metric, value in results.items():
+        print(f"{metric:<15}: {value:.4f}")
+    print("-" * 40)
+    # 10. Summary
     print_summary(history)
 
-    print("[DONE] Phase 9 complete.")
+    # Save the final trained model
+    final_model_path = MODELS_DIR / "final_model.keras"
+    model.save(final_model_path)
+
+    print(f"[INFO] Final model saved -> {final_model_path}")
+
+    logging.info("[DONE] Phase 9 complete.")
     print(f"       Best model saved -> {BEST_MODEL_PATH}")
     print("=" * 60 + "\n")
 
     return history
-
 
 # ---------------------------------------------------------------------------
 # CLI entry-point

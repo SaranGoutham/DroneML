@@ -18,8 +18,8 @@ Architecture Overview
          →  Dense(1,  activation='sigmoid')   ← Binary output
 
 Label convention (inherited from dataset_loader / create_tf_dataset):
-    0 → No_Mine
-    1 → Mine
+    1 → No_Mine
+    0 → Mine
 
 Public API
 ----------

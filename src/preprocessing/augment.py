@@ -24,10 +24,16 @@ def build_train_augmentation() -> keras.Sequential:
     """
     augmentation_layers = [
         layers.RandomFlip("horizontal"),
-        layers.RandomRotation(0.10),
-        layers.RandomZoom(0.15),
-        layers.RandomTranslation(0.10, 0.10),
-        layers.RandomContrast(0.10),
+        layers.RandomRotation(0.03,
+        fill_mode="nearest"
+        ),
+        layers.RandomZoom(0.10,
+        fill_mode="nearest" 
+        ),
+        layers.RandomTranslation(0.05, 0.05,
+        fill_mode="nearest"
+        ),
+        layers.RandomContrast(0.10,),
     ]
     return keras.Sequential(augmentation_layers, name="train_augmentation")
 
@@ -65,9 +71,9 @@ def show_pipeline() -> None:
         "========================================",
         "",
         "✓ Horizontal Flip",
-        "✓ Rotation (±10%)",
-        "✓ Zoom (15%)",
-        "✓ Translation (10%)",
+        "✓ Rotation (±3%)",
+        "✓ Zoom (10%)",
+        "✓ Translation (5%)",
         "✓ Contrast (10%)",
         "",
         "Pipeline Ready",
