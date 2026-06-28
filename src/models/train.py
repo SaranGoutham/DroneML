@@ -265,7 +265,7 @@ def train() -> keras.callbacks.History:
 
     # 4. Build model
     print("[2/5] Building model ...")
-    model = build_model(
+    model, _backbone = build_model(
         input_shape        = INPUT_SHAPE,
         learning_rate      = LEARNING_RATE,
         trainable_backbone = False,   # baseline: backbone frozen
