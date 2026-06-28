@@ -53,3 +53,4 @@ FlightAltitude_*
 # Test Files (Optional)
 # ----------------------------
 test*.py
+docs/
