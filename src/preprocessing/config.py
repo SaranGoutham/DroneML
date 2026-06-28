@@ -76,38 +76,10 @@ GAMMA = 1.2
 
 RANDOM_STATE = 42
 
-# MobileNetV3 hyper‑parameters (move from model to config)
-MOBILENETV3_LEARNING_RATE: float = 1e-3  # frozen‑backbone phase
-MOBILENETV3_DENSE_UNITS_1: int = 256
-MOBILENETV3_DENSE_UNITS_2: int = 128
-MOBILENETV3_DROPOUT_RATE_1: float = 0.40
-MOBILENETV3_DROPOUT_RATE_2: float = 0.30
-MOBILENETV3_L2_WEIGHT: float = 1e-4
-
-# Directory for saving model architecture diagrams
-FIGURES_DIR = RESULTS_DIR / "figures"
-# =====================================================
-# TRAINING OUTPUT DIRECTORIES
-# =====================================================
-
-MODELS_DIR = RESULTS_DIR / "models"
-CHECKPOINTS_DIR = RESULTS_DIR / "checkpoints"
-HISTORY_DIR = RESULTS_DIR / "history"
-LOGS_DIR = RESULTS_DIR / "logs"
-
-BEST_MODEL_PATH = CHECKPOINTS_DIR / "best_model.keras"
-FINE_TUNED_MODEL_PATH = CHECKPOINTS_DIR / "best_model_finetuned.keras"
-
-TRAINING_HISTORY_JSON = HISTORY_DIR / "training_history.json"
-TRAINING_HISTORY_PKL = HISTORY_DIR / "training_history.pkl"
-
-TRAINING_LOG_CSV = LOGS_DIR / "training_log.csv"
-TENSORBOARD_LOG_DIR = LOGS_DIR / "tensorboard"
 
 # Ensure directories exist (including figures)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
-FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
