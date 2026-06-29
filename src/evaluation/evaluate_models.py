@@ -1,21 +1,19 @@
 # -*- coding: utf-8 -*-
-"""evaluate_models.py – DroneML
-==================================
+"""evaluate_models.py – DroneML  [src/evaluation]
+==================================================
 
-Phase 12b – Standalone Test-Set Evaluation
---------------------------------------------
-Loads each saved final model and runs a full evaluation on the test set,
-producing per-model metrics and confusion matrices without needing to
-re-train.
+Phase 10 – Quick Model Evaluator
+----------------------------------
+Loads each saved final model, runs a full evaluation on the test set,
+and updates comparison_results.json.
 
-This script is useful for:
-  - Quick re-evaluation after loading saved models
-  - Generating fresh confusion matrices / classification reports
-  - Updating comparison_results.json with new test metrics
+This is a lighter-weight companion to metrics.py.
+  - metrics.py  → full evaluation suite with F1, ROC-AUC, all plots
+  - evaluate_models.py  → quick re-evaluation, updates comparison JSON
 
 Usage
 -----
-  python -m src.models.evaluate_models
+  python -m src.evaluation.evaluate_models
 """
 
 from __future__ import annotations
@@ -53,6 +51,7 @@ from src.preprocessing.create_tf_dataset import create_datasets
 from src.models.config import (
     COMPARISON_DIR,
     COMPARISON_RESULTS_JSON,
+    EVALUATION_DIR,
     MOBILENETV3_FINAL_MODEL_PATH,
     RESNET50_FINAL_MODEL_PATH,
     EFFICIENTNETB0_FINAL_MODEL_PATH,
@@ -92,13 +91,7 @@ def evaluate_single(
     class_names: list[str],
     out_dir: Path,
 ) -> dict:
-    """Evaluate one model on the test set.
-
-    Returns
-    -------
-    dict
-        Test metrics dictionary.
-    """
+    """Evaluate one model on the test set."""
     # Keras evaluate
     results = model.evaluate(test_ds, return_dict=True, verbose=1)
 
@@ -110,9 +103,9 @@ def evaluate_single(
         y_pred_list.append(preds)
         y_true_list.append(labels.numpy().flatten())
 
-    y_true = np.concatenate(y_true_list)
+    y_true     = np.concatenate(y_true_list)
     y_pred_prob = np.concatenate(y_pred_list)
-    y_pred = (y_pred_prob >= 0.5).astype(int)
+    y_pred     = (y_pred_prob >= 0.5).astype(int)
 
     # ROC-AUC (sklearn)
     try:
@@ -134,7 +127,7 @@ def evaluate_single(
     print(f"\nClassification Report – {model_name}")
     print(classification_report(y_true, y_pred, target_names=class_names))
 
-    # Confusion matrix
+    # Confusion matrix saved to evaluation dir
     cm   = confusion_matrix(y_true, y_pred)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
 
@@ -158,7 +151,7 @@ def evaluate_single(
 
 def evaluate_all() -> None:
     """Evaluate all saved models and update comparison_results.json."""
-    COMPARISON_DIR.mkdir(parents=True, exist_ok=True)
+    EVALUATION_DIR.mkdir(parents=True, exist_ok=True)
 
     # Load test dataset
     logging.info("Loading test dataset ...")
@@ -186,11 +179,11 @@ def evaluate_all() -> None:
         model = keras.models.load_model(str(model_path))
 
         results = evaluate_single(
-            model      = model,
-            test_ds    = test_ds,
-            model_name = name,
+            model       = model,
+            test_ds     = test_ds,
+            model_name  = name,
             class_names = class_names,
-            out_dir    = COMPARISON_DIR,
+            out_dir     = EVALUATION_DIR,
         )
         all_results[name] = results
 
@@ -216,9 +209,9 @@ def evaluate_all() -> None:
         print(f"  {'Model':<22} | {'Accuracy':>10} | {'AUC':>8} | {'ROC-AUC':>8}")
         print("-" * 65)
         for name, res in all_results.items():
-            acc     = res.get("accuracy",           0)
-            auc_v   = res.get("auc",                0)
-            roc_auc = res.get("roc_auc_sklearn",    0)
+            acc     = res.get("accuracy",        0)
+            auc_v   = res.get("auc",             0)
+            roc_auc = res.get("roc_auc_sklearn", 0)
             flag    = " 🏆" if name == best else ""
             print(f"  {name:<22} | {acc:>10.4f} | {auc_v:>8.4f} | {roc_auc:>8.4f}{flag}")
         print("=" * 65 + "\n")

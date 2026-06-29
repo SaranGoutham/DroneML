@@ -5,6 +5,19 @@ DroneML
 Central configuration for model architecture, training,
 checkpoints, TensorBoard, and model artifacts.
 Supports MobileNetV3-Large, ResNet50, and EfficientNetB0.
+
+Phase directory layout
+-----------------------
+  results/
+    figures/            – training curve PNGs
+    models/             – final saved .keras models
+    checkpoints/        – best / fine-tuned .keras checkpoints
+    history/            – per-model training history JSON/pkl
+    logs/               – TensorBoard + CSV logs
+    comparison/         – multi-model comparison charts & report
+    evaluation/         – Phase 10 evaluation outputs
+    gradcam/            – Phase 11 Grad-CAM heatmaps
+    error_analysis/     – Phase 12 error analysis outputs
 """
 
 from pathlib import Path
@@ -103,6 +116,15 @@ LOGS_DIR = RESULTS_DIR / "logs"
 
 COMPARISON_DIR = RESULTS_DIR / "comparison"
 
+# Phase 10 – Evaluation
+EVALUATION_DIR = RESULTS_DIR / "evaluation"
+
+# Phase 11 – Explainability (Grad-CAM)
+GRADCAM_DIR = RESULTS_DIR / "gradcam"
+
+# Phase 12 – Error Analysis
+ERROR_ANALYSIS_DIR = RESULTS_DIR / "error_analysis"
+
 # =====================================================
 # OUTPUT FILES – MobileNetV3
 # =====================================================
@@ -200,20 +222,73 @@ COMPARISON_RESULTS_JSON = COMPARISON_DIR / "comparison_results.json"
 COMPARISON_REPORT_MD = COMPARISON_DIR / "comparison_report.md"
 
 # =====================================================
+# PHASE 10 – EVALUATION FILES
+# =====================================================
+
+# Per-model confusion matrices
+MOBILENETEV3_CONFUSION_PNG = (
+    EVALUATION_DIR / "confusion_matrix_mobilenetv3.png"
+)
+RESNET50_CONFUSION_PNG = (
+    EVALUATION_DIR / "confusion_matrix_resnet50.png"
+)
+EFFICIENTNETB0_CONFUSION_PNG = (
+    EVALUATION_DIR / "confusion_matrix_efficientnetb0.png"
+)
+
+# Shared ROC curve (all models on one plot)
+ROC_CURVE_PNG = EVALUATION_DIR / "roc_curve.png"
+
+# Per-model metrics JSON
+MOBILENETV3_METRICS_JSON = (
+    EVALUATION_DIR / "metrics_mobilenetv3.json"
+)
+RESNET50_METRICS_JSON = (
+    EVALUATION_DIR / "metrics_resnet50.json"
+)
+EFFICIENTNETB0_METRICS_JSON = (
+    EVALUATION_DIR / "metrics_efficientnetb0.json"
+)
+
+# Combined metrics (all models)
+ALL_METRICS_JSON = EVALUATION_DIR / "metrics.json"
+
+# =====================================================
+# PHASE 11 – GRADCAM FILES
+# =====================================================
+
+# Per-model Grad-CAM sub-directories (created at runtime)
+GRADCAM_MOBILENETV3_DIR = GRADCAM_DIR / "mobilenetv3"
+GRADCAM_RESNET50_DIR    = GRADCAM_DIR / "resnet50"
+GRADCAM_EFFICIENTNETB0_DIR = GRADCAM_DIR / "efficientnetb0"
+
+# =====================================================
+# PHASE 12 – ERROR ANALYSIS FILES
+# =====================================================
+
+ERROR_ANALYSIS_FP_DIR = ERROR_ANALYSIS_DIR / "false_positives"
+ERROR_ANALYSIS_FN_DIR = ERROR_ANALYSIS_DIR / "false_negatives"
+ERROR_ANALYSIS_REPORT_MD = ERROR_ANALYSIS_DIR / "error_report.md"
+ERROR_ANALYSIS_FLIGHT_PNG = ERROR_ANALYSIS_DIR / "flight_wise_accuracy.png"
+ERROR_ANALYSIS_ALTITUDE_PNG = ERROR_ANALYSIS_DIR / "altitude_wise_accuracy.png"
+ERROR_ANALYSIS_DEPTH_PNG = ERROR_ANALYSIS_DIR / "depth_wise_accuracy.png"
+ERROR_ANALYSIS_ZONE_PNG = ERROR_ANALYSIS_DIR / "zone_wise_accuracy.png"
+
+# =====================================================
 # CREATE DIRECTORIES
 # =====================================================
 
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
-
 CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
-
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
-
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
-
 COMPARISON_DIR.mkdir(parents=True, exist_ok=True)
+EVALUATION_DIR.mkdir(parents=True, exist_ok=True)
+GRADCAM_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_ANALYSIS_FP_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_ANALYSIS_FN_DIR.mkdir(parents=True, exist_ok=True)
 
 # =====================================================
 # EXPORTS
@@ -291,4 +366,28 @@ __all__ = [
     # Comparison
     "COMPARISON_RESULTS_JSON",
     "COMPARISON_REPORT_MD",
+    # Phase 10 – Evaluation
+    "EVALUATION_DIR",
+    "ROC_CURVE_PNG",
+    "ALL_METRICS_JSON",
+    "MOBILENETEV3_CONFUSION_PNG",
+    "RESNET50_CONFUSION_PNG",
+    "EFFICIENTNETB0_CONFUSION_PNG",
+    "MOBILENETV3_METRICS_JSON",
+    "RESNET50_METRICS_JSON",
+    "EFFICIENTNETB0_METRICS_JSON",
+    # Phase 11 – Grad-CAM
+    "GRADCAM_DIR",
+    "GRADCAM_MOBILENETV3_DIR",
+    "GRADCAM_RESNET50_DIR",
+    "GRADCAM_EFFICIENTNETB0_DIR",
+    # Phase 12 – Error Analysis
+    "ERROR_ANALYSIS_DIR",
+    "ERROR_ANALYSIS_FP_DIR",
+    "ERROR_ANALYSIS_FN_DIR",
+    "ERROR_ANALYSIS_REPORT_MD",
+    "ERROR_ANALYSIS_FLIGHT_PNG",
+    "ERROR_ANALYSIS_ALTITUDE_PNG",
+    "ERROR_ANALYSIS_DEPTH_PNG",
+    "ERROR_ANALYSIS_ZONE_PNG",
 ]
