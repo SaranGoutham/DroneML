@@ -98,6 +98,8 @@ REDUCE_LR_FACTOR: float = 0.2
 
 MIN_LEARNING_RATE: float = 1e-7
 
+REDUCE_LR_PATIENCE = PATIENCE
+
 TENSORBOARD_UPDATE_FREQ: str = "epoch"
 
 # =====================================================
