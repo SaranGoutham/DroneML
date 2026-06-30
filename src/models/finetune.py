@@ -40,6 +40,7 @@ import pickle
 import logging
 import argparse
 import datetime
+import time
 from pathlib import Path
 from typing import Any
 
@@ -184,7 +185,7 @@ def _build_ft_callbacks(
     callbacks = [
         keras.callbacks.EarlyStopping(
             monitor              = "val_loss",
-            patience             = 5,
+            patience             = PATIENCE,
             restore_best_weights = True,
             verbose              = 1,
         ),
@@ -304,6 +305,7 @@ def finetune_single(
         "Starting fine-tuning  (lr=%.0e  max_epochs=%d) ...",
         FINE_TUNE_LEARNING_RATE, FINE_TUNE_EPOCHS,
     )
+    start_time = time.time()
     history = model.fit(
         train_ds,
         validation_data = val_ds,
@@ -311,6 +313,12 @@ def finetune_single(
         callbacks       = callbacks,
         class_weight    = class_weights,
         verbose         = 1,
+    )
+    training_time = time.time() - start_time
+
+    logging.info(
+        "Training Time : %.2f minutes",
+        training_time / 60,
     )
 
     best_val_acc = max(history.history.get("val_accuracy", [0]))
@@ -340,6 +348,12 @@ def finetune_single(
     HISTORY_DIR.mkdir(parents=True, exist_ok=True)
     with open(ft_hist_json, "w", encoding="utf-8") as f:
         json.dump(history.history, f, indent=4)
+        ft_hist_pkl = HISTORY_DIR / f"{entry['key']}_finetune_history.pkl"
+
+    with open(ft_hist_pkl, "wb") as f:
+        pickle.dump(history.history, f)
+
+    logging.info("Fine-tune history saved → %s", ft_hist_pkl)
     logging.info("Fine-tune history saved → %s", ft_hist_json)
 
     entry["final_model"].parent.mkdir(parents=True, exist_ok=True)
