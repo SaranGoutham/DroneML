@@ -76,6 +76,17 @@ GAMMA = 1.2
 
 RANDOM_STATE = 42
 
+# =====================================================
+# OFFLINE DATA AUGMENTATION
+# =====================================================
+
+OFFLINE_AUG_REPORT_FILE = RESULTS_DIR / "augmentation_report.txt"
+
+# Class-specific multiplication factors to balance the training split
+AUGMENTATION_FACTORS = {
+    "Mine": 2,      # 220 -> 660 total (original + 440 augmented)
+    "No_Mine": 20,   # 30 -> 630 total (original + 600 augmented)
+}
 
 # Ensure directories exist (including figures)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
