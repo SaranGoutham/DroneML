@@ -6,3 +6,4 @@ opencv-python>=4.13
 matplotlib>=3.11
 tqdm>=4.68
 scikit-learn>=1.5
+imagehash>=4.3

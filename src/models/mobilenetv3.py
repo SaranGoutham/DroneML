@@ -255,7 +255,9 @@ def unfreeze_top_layers(backbone: keras.Model, num_layers: int = 10) -> None:
     freeze_backbone(backbone)
     # Unfreeze the specified top layers
     for layer in backbone.layers[-num_layers:]:
-        layer.trainable = True
+        if not isinstance(layer, layers.BatchNormalization ):
+            layer.trainable = True
+
     logging.info("Top %d backbone layers unfrozen.", num_layers)
 
 

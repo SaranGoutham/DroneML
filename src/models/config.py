@@ -24,8 +24,10 @@ from pathlib import Path
 
 from src.preprocessing.config import (
     IMAGE_SIZE,
+    PROCESSED_DIR,
     RANDOM_STATE,
     RESULTS_DIR,
+    TEST_DIR,
 )
 
 # =====================================================
@@ -98,7 +100,7 @@ REDUCE_LR_FACTOR: float = 0.2
 
 MIN_LEARNING_RATE: float = 1e-7
 
-REDUCE_LR_PATIENCE = PATIENCE
+REDUCE_LR_PATIENCE = 4
 
 TENSORBOARD_UPDATE_FREQ: str = "epoch"
 
@@ -120,6 +122,12 @@ COMPARISON_DIR = RESULTS_DIR / "comparison"
 
 # Phase 10 – Evaluation
 EVALUATION_DIR = RESULTS_DIR / "evaluation"
+
+# Evaluation selects one model per run.  Change only these values to evaluate
+# another trained architecture or checkpoint phase.
+EVALUATION_MODEL_NAME: str = "mobilenetv3"
+EVALUATION_USE_FINETUNED_MODEL: bool = True  # True = use fine-tuned model, False = use best checkpoint
+EVALUATION_THRESHOLD: float = 0.5
 
 # Phase 11 – Explainability (Grad-CAM)
 GRADCAM_DIR = RESULTS_DIR / "gradcam"
@@ -199,6 +207,25 @@ EFFICIENTNETB0_HISTORY_PKL = (
     HISTORY_DIR / "efficientnetb0_history.pkl"
 )
 
+# Generic model metadata consumed by the evaluation pipeline.
+EVALUATION_MODEL_CONFIGS = {
+    "mobilenetv3": {
+        "display_name": "MobileNetV3",
+        "best_model_path": MOBILENETV3_BEST_MODEL_PATH,
+        "finetuned_model_path": MOBILENETV3_FINETUNED_MODEL_PATH,
+    },
+    "resnet50": {
+        "display_name": "ResNet50",
+        "best_model_path": RESNET50_BEST_MODEL_PATH,
+        "finetuned_model_path": RESNET50_FINETUNED_MODEL_PATH,
+    },
+    "efficientnetb0": {
+        "display_name": "EfficientNetB0",
+        "best_model_path": EFFICIENTNETB0_BEST_MODEL_PATH,
+        "finetuned_model_path": EFFICIENTNETB0_FINETUNED_MODEL_PATH,
+    },
+}
+
 # =====================================================
 # OUTPUT FILES – Legacy (kept for backward compat.)
 # =====================================================
@@ -228,7 +255,7 @@ COMPARISON_REPORT_MD = COMPARISON_DIR / "comparison_report.md"
 # =====================================================
 
 # Per-model confusion matrices
-MOBILENETEV3_CONFUSION_PNG = (
+MOBILENETV3_CONFUSION_PNG = (
     EVALUATION_DIR / "confusion_matrix_mobilenetv3.png"
 )
 RESNET50_CONFUSION_PNG = (
@@ -299,8 +326,10 @@ ERROR_ANALYSIS_FN_DIR.mkdir(parents=True, exist_ok=True)
 __all__ = [
     # Inherited from preprocessing config
     "IMAGE_SIZE",
+    "PROCESSED_DIR",
     "RANDOM_STATE",
     "RESULTS_DIR",
+    "TEST_DIR",
     # MobileNetV3 hyperparams
     "MOBILENETV3_LEARNING_RATE",
     "MOBILENETV3_DENSE_UNITS_1",
@@ -333,6 +362,7 @@ __all__ = [
     "REDUCE_LR_FACTOR",
     "MIN_LEARNING_RATE",
     "TENSORBOARD_UPDATE_FREQ",
+    "REDUCE_LR_PATIENCE",
     # Directories
     "FIGURES_DIR",
     "MODELS_DIR",
@@ -370,9 +400,13 @@ __all__ = [
     "COMPARISON_REPORT_MD",
     # Phase 10 – Evaluation
     "EVALUATION_DIR",
+    "EVALUATION_MODEL_NAME",
+    "EVALUATION_USE_FINETUNED_MODEL",
+    "EVALUATION_THRESHOLD",
+    "EVALUATION_MODEL_CONFIGS",
     "ROC_CURVE_PNG",
     "ALL_METRICS_JSON",
-    "MOBILENETEV3_CONFUSION_PNG",
+    "MOBILENETV3_CONFUSION_PNG",
     "RESNET50_CONFUSION_PNG",
     "EFFICIENTNETB0_CONFUSION_PNG",
     "MOBILENETV3_METRICS_JSON",

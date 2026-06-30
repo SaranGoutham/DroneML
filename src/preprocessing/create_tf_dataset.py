@@ -62,7 +62,7 @@ def load_split(split_path: Path, *, shuffle: bool = False) -> tf.data.Dataset:
     return tf.keras.utils.image_dataset_from_directory(
         directory=str(split_path),
         labels="inferred",
-        label_mode="binary",  # Mine = 1, No_Mine = 0
+        label_mode="binary",  # Mine = 0, No_Mine = 1
         batch_size=BATCH_SIZE,
         image_size=IMAGE_SIZE,
         shuffle=shuffle,
@@ -71,31 +71,41 @@ def load_split(split_path: Path, *, shuffle: bool = False) -> tf.data.Dataset:
         subset=None,
     )
 
-def prepare_dataset(dataset: tf.data.Dataset, *, training: bool = False) -> tf.data.Dataset:
-    """Normalize, optionally augment, cache and prefetch a dataset.
+def prepare_dataset(
+    dataset: tf.data.Dataset,
+    *,
+    training: bool = False,
+) -> tf.data.Dataset:
+    """Prepare dataset for training or evaluation."""
 
-    The pipeline applied is:
-        1. Cast to ``tf.float32`` and divide by 255 → range ``[0, 1]``.
-        2. If ``training`` is ``True``, apply the augmentation pipeline
-           returned by :func:`build_train_augmentation`.
-        3. ``cache()`` – caches the dataset in memory for faster reuse.
-        4. ``prefetch(AUTOTUNE)`` – overlaps preprocessing and training.
-    """
-    # 1. Normalization
+    # Step 1: Convert images to float32
     dataset = dataset.map(
-        lambda x, y: (tf.cast(x, tf.float32) / 255.0, y),
+        lambda x, y: (tf.cast(x, tf.float32), y),
         num_parallel_calls=AUTOTUNE,
     )
 
-    # 2. Optional augmentation (training only)
+    # Step 2: Apply augmentation only for training
     if training:
         dataset = dataset.map(
-            lambda x, y: (TRAIN_AUGMENTATION(x, training=True), y),
+            lambda x, y: (
+                TRAIN_AUGMENTATION(x, training=True),
+                y,
+            ),
             num_parallel_calls=AUTOTUNE,
         )
 
-    # 3. Cache and prefetch
+    # Step 3: MobileNetV3 preprocessing
+    dataset = dataset.map(
+        lambda x, y: (
+            tf.keras.applications.mobilenet_v3.preprocess_input(x),
+            y,
+        ),
+        num_parallel_calls=AUTOTUNE,
+    )
+
+    # Step 4: Cache and prefetch
     dataset = dataset.cache().prefetch(AUTOTUNE)
+
     return dataset
 
 def create_datasets(base_path: Path = PROCESSED_DIR) -> tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset,List[str]]:

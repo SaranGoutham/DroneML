@@ -73,6 +73,7 @@ from src.models.config import (
     MIN_LEARNING_RATE,
     TENSORBOARD_UPDATE_FREQ,
     PATIENCE,
+    REDUCE_LR_PATIENCE,
     # Checkpoint paths (input – best frozen model)
     MOBILENETV3_BEST_MODEL_PATH,
     RESNET50_BEST_MODEL_PATH,
@@ -192,7 +193,7 @@ def _build_ft_callbacks(
         keras.callbacks.ReduceLROnPlateau(
             monitor  = "val_loss",
             factor   = REDUCE_LR_FACTOR,
-            patience = 3,
+            patience = REDUCE_LR_PATIENCE,
             min_lr   = MIN_LEARNING_RATE,
             verbose  = 1,
         ),
