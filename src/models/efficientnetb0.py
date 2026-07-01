@@ -184,7 +184,7 @@ def build_model(
     )(x)
     x = layers.Dropout(DROPOUT_RATE_2, seed=random_seed, name="dropout_2")(x)
 
-    # Binary output: sigmoid → probability of Mine class
+    # Binary output: sigmoid → probability of No_Mine class
     outputs = layers.Dense(
         NUM_CLASSES,
         activation="sigmoid",

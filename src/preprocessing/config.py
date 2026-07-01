@@ -84,8 +84,8 @@ OFFLINE_AUG_REPORT_FILE = RESULTS_DIR / "augmentation_report.txt"
 
 # Class-specific multiplication factors to balance the training split
 AUGMENTATION_FACTORS = {
-    "Mine": 2,      # 220 -> 660 total (original + 440 augmented)
-    "No_Mine": 20,   # 30 -> 630 total (original + 600 augmented)
+    "Mine": 0,      # 220 -> 660 total (original + 440 augmented)
+    "No_Mine": 9,   # 30 -> 630 total (original + 600 augmented)
 }
 
 # Ensure directories exist (including figures)

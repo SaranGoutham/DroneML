@@ -62,7 +62,7 @@ def load_split(split_path: Path, *, shuffle: bool = False) -> tf.data.Dataset:
     return tf.keras.utils.image_dataset_from_directory(
         directory=str(split_path),
         labels="inferred",
-        label_mode="binary",  # Mine = 1, No_Mine = 0
+        label_mode="binary",  # Mine = 0, No_Mine = 1
         batch_size=BATCH_SIZE,
         image_size=IMAGE_SIZE,
         shuffle=shuffle,
@@ -76,10 +76,10 @@ def prepare_dataset(dataset: tf.data.Dataset, *, training: bool = False) -> tf.d
 
     The pipeline applied is:
         1. Cast to ``tf.float32`` and divide by 255 → range ``[0, 1]``.
-        2. If ``training`` is ``True``, apply the augmentation pipeline
+        2. Cache after normalization to avoid caching augmentation.
+        3. If ``training`` is ``True``, apply the augmentation pipeline
            returned by :func:`build_train_augmentation`.
-        3. ``cache()`` – caches the dataset in memory for faster reuse.
-        4. ``prefetch(AUTOTUNE)`` – overlaps preprocessing and training.
+        4. Prefetch for performance.
     """
     # 1. Normalization
     dataset = dataset.map(
@@ -87,18 +87,21 @@ def prepare_dataset(dataset: tf.data.Dataset, *, training: bool = False) -> tf.d
         num_parallel_calls=AUTOTUNE,
     )
 
-    # 2. Optional augmentation (training only)
+    # 2. Cache after normalization
+    dataset = dataset.cache()
+
+    # 3. Optional augmentation (training only)
     if training:
         dataset = dataset.map(
             lambda x, y: (TRAIN_AUGMENTATION(x, training=True), y),
             num_parallel_calls=AUTOTUNE,
         )
 
-    # 3. Cache and prefetch
-    dataset = dataset.cache().prefetch(AUTOTUNE)
+    # 4. Prefetch for performance
+    dataset = dataset.prefetch(AUTOTUNE)
     return dataset
 
-def create_datasets(base_path: Path = PROCESSED_DIR) -> tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset,List[str]]:
+def create_datasets(base_path: Path = PROCESSED_DIR) -> tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, List[str]]:
     """Create training, validation and test datasets.
 
     The function loads each split, applies the appropriate preprocessing/augmentation
@@ -125,6 +128,68 @@ def create_datasets(base_path: Path = PROCESSED_DIR) -> tuple[tf.data.Dataset, t
 
     return train_ds, val_ds, test_ds, class_names
 
+def create_stratified_split(base_path: Path = PROCESSED_DIR, train_ratio: float = 0.8, val_ratio: float = 0.1) -> tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, List[str]]:
+    """Create stratified random train/val/test splits from the training directory.
+
+    This function uses ``tf.keras.utils.image_dataset_from_directory`` with ``validation_split``
+    to obtain a random split that respects class balance. The test set is derived from the
+    remaining portion after allocating train and validation sets.
+    """
+    # Compute the proportion of data reserved for validation+test
+    val_test_ratio = 1.0 - train_ratio
+    # Load training portion
+    train_raw = tf.keras.utils.image_dataset_from_directory(
+        directory=str(base_path / "train"),
+        labels="inferred",
+        label_mode="binary",
+        batch_size=BATCH_SIZE,
+        image_size=IMAGE_SIZE,
+        shuffle=True,
+        seed=RANDOM_STATE,
+        validation_split=val_test_ratio,
+        subset="training",
+    )
+    # Load combined validation+test portion
+    val_test_raw = tf.keras.utils.image_dataset_from_directory(
+        directory=str(base_path / "train"),
+        labels="inferred",
+        label_mode="binary",
+        batch_size=BATCH_SIZE,
+        image_size=IMAGE_SIZE,
+        shuffle=True,
+        seed=RANDOM_STATE,
+        validation_split=val_test_ratio,
+        subset="validation",
+    )
+    # Determine split sizes for validation and test
+    total_val_test = tf.data.experimental.cardinality(val_test_raw).numpy()
+    val_portion = val_ratio / (val_ratio + (1.0 - train_ratio - val_ratio))
+    val_batches = int(total_val_test * val_portion)
+    val_raw = val_test_raw.take(val_batches)
+    test_raw = val_test_raw.skip(val_batches)
+
+    # Class names from training set
+    class_names = train_raw.class_names
+
+    # Apply preparation pipelines
+    train_ds = prepare_dataset(train_raw, training=True)
+    val_ds = prepare_dataset(val_raw, training=False)
+    test_ds = prepare_dataset(test_raw, training=False)
+
+    return train_ds, val_ds, test_ds, class_names
+
+def print_dataset_info(train_ds: tf.data.Dataset, val_ds: tf.data.Dataset, test_ds: tf.data.Dataset,class_names: List[str]) -> None:
+    """Print a concise summary of the created datasets.
+    """
+    print("=" * 39)
+    print("TF DATASET CREATION")
+    print("=" * 39)
+    print(f"Batch Size      : {BATCH_SIZE}")
+    print(f"Image Size      : {IMAGE_SIZE[0]}x{IMAGE_SIZE[1]}")
+    # Class names are inferred from the directory structure; we can extract them
+    # from one of the raw datasets (they share the same ordering).
+    return train_ds, val_ds, test_ds, class_names
+
 def print_dataset_info(train_ds: tf.data.Dataset, val_ds: tf.data.Dataset, test_ds: tf.data.Dataset,class_names: List[str]) -> None:
     """Print a concise summary of the created datasets.
     """
@@ -144,9 +209,17 @@ def print_dataset_info(train_ds: tf.data.Dataset, val_ds: tf.data.Dataset, test_
 def main() -> None:
     """Run the full dataset creation pipeline and display information.
     """
+    import argparse
+    parser = argparse.ArgumentParser(description="Create TF datasets.")
+    parser.add_argument("--random-split", action="store_true", help="Use stratified random split instead of flight‑based split.")
+    args = parser.parse_args()
+
     base_path = PROCESSED_DIR
-    train_ds, val_ds, test_ds,class_names = create_datasets(base_path)
-    print_dataset_info(train_ds, val_ds, test_ds,class_names)
+    if args.random_split:
+        train_ds, val_ds, test_ds, class_names = create_stratified_split(base_path)
+    else:
+        train_ds, val_ds, test_ds, class_names = create_datasets(base_path)
+    print_dataset_info(train_ds, val_ds, test_ds, class_names)
     print("Dataset Ready")
 
 if __name__ == "__main__":
