@@ -54,3 +54,17 @@ FlightAltitude_*
 # ----------------------------
 test*.py
 docs/
+@"
+# Dataset
+data/
+
+# Results
+results/
+
+# Virtual Environment
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+"@ | Out-File -Encoding utf8 .gitignore
