@@ -34,37 +34,38 @@ ENV/
 Thumbs.db
 
 # ----------------------------
-# Datasets
+# Datasets & Local Data
 # ----------------------------
 dataset/
 processed_dataset/
+data/
+data/mineinsight/classification_v2/
+data/mineinsight/raw/
+data/mineinsight/processed_v2/
+data/mineinsight/reports_v2/
+lightning_data/
+mine_files.txt
+nomine_files.txt
 
 # ----------------------------
-# Results
+# Model Weights & Checkpoints
+# ----------------------------
+*.keras
+*.h5
+*.ckpt
+*.pt
+*.pth
+
+# ----------------------------
+# Results & Artifacts
 # ----------------------------
 results/
+lightning_logs/
+wandb/
 
 # ----------------------------
-# Temporary Files
+# Temporary & Test Files
 # ----------------------------
 FlightAltitude_*
-
-# ----------------------------
-# Test Files (Optional)
-# ----------------------------
 test*.py
 docs/
-@"
-# Dataset
-data/
-
-# Results
-results/
-
-# Virtual Environment
-venv/
-
-# Python
-__pycache__/
-*.py[cod]
-"@ | Out-File -Encoding utf8 .gitignore
