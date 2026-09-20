@@ -46,6 +46,9 @@ data/mineinsight/reports_v2/
 lightning_data/
 mine_files.txt
 nomine_files.txt
+*.zip
+*.tar
+*.tar.gz
 
 # ----------------------------
 # Model Weights & Checkpoints
